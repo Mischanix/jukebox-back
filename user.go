@@ -3,6 +3,7 @@ package main
 import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
+	"strings"
 )
 
 type User struct {
@@ -14,6 +15,7 @@ type User struct {
 
 type DbUser struct {
 	Nick              string
+	NickLower         string
 	Quarters          float64
 	SkipCost          float64
 	Fake              bool
@@ -43,8 +45,9 @@ func UserWithNick(nick string) *DbUser {
 	if nick == "" {
 		return nil
 	}
+	nicklower := strings.ToLower(nick)
 	result := &DbUser{}
-	err := dbColl.Find(bson.M{"nick": nick}).One(result)
+	err := dbColl.Find(bson.M{"nicklower": nicklower}).One(result)
 	if err != nil {
 		if err == mgo.ErrNotFound {
 			return nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,7 @@ func loginHandler(c *Client, frame hash) {
 			return
 		}
 		dbUser.Nick = nick
+		dbUser.NickLower = strings.ToLower(nick)
 		dbUser.Fake = false
 		dbUser.NewKey(pass)
 		c.UpdateUser(*dbUser)
