@@ -3,7 +3,6 @@ package main
 import (
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
-	"log"
 )
 
 type User struct {
@@ -39,7 +38,10 @@ func UserWithSid(sid string) *DbUser {
 func UpdateUserSecret(oldSid, newSid, newSecret string) error {
 	return dbColl.Update(
 		bson.M{"lastsessionid": oldSid},
-		bson.M{"lastsessionid": newSid, "lastsessionsecret": newSecret})
+		bson.M{"$set": bson.M{
+			"lastsessionid":     newSid,
+			"lastsessionsecret": newSecret,
+		}})
 }
 
 func UpdateUser(sid string, user *User) error {
@@ -47,6 +49,29 @@ func UpdateUser(sid string, user *User) error {
 		bson.M{"lastsessionid": sid}, *user)
 }
 
-func CreateFakeUser(sid, secret string) {
-	log.Println("I be makin a fake user now mmhm (nah jk)")
+func (c *Client) CreateFakeUser() {
+	var dbUser DbUser
+	dbUser.Nick = FakeName()
+	dbUser.SkipCost = 0.1
+	dbUser.Fake = true
+	dbUser.LastSessionId = c.session.OldId
+	dbUser.LastSessionSecret = c.session.Secret
+	err := dbColl.Insert(dbUser)
+	if err != nil {
+		panic(err)
+	}
+
+	c.UpdateUserFromDb(dbUser)
+}
+
+func (c *Client) UpdateUserFromDb(dbUser DbUser) {
+	c.user = &User{}
+	c.user.Fake = dbUser.Fake
+	c.user.Nick = dbUser.Nick
+	c.user.Quarters = dbUser.Quarters
+	c.user.SkipCost = dbUser.SkipCost
+}
+
+func (c *Client) SendUserInfo() {
+	c.sendQueue <- userMessage(c.user.Nick, c.user.Quarters, c.user.SkipCost)
 }

@@ -4,6 +4,6 @@ func init() {
 	handlers["login"] = loginHandler
 }
 
-func loginHandler(c *Client, frame []byte) {
+func loginHandler(c *Client, frame hash) {
 
 }

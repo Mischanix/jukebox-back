@@ -1,12 +1,14 @@
 package main
 
-type SessionMessage struct {
-	BasicMessage
-	Session string `json:"session"`
-	Secret  string `json:"secret"`
+func sessionMessage(frame hash) (session, secret string) {
+	return frame.stringOrEmpty("session"), frame.stringOrEmpty("secret")
 }
 
-type SessionResponseMessage struct {
-	SessionMessage
-	Accepted bool `json:"accepted"`
+func sessionResponseMessage(session, secret string, accepted bool) hash {
+	return hash{
+		"type":     "session.response",
+		"session":  session,
+		"secret":   secret,
+		"accepted": accepted,
+	}
 }

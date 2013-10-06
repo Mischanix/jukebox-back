@@ -1,37 +1,35 @@
 package main
 
-import (
-	"log"
-	"time"
-)
-
 func init() {
 	handlers["session"] = sessionHandler
+	handlers["session.updated"] = sessionUpdatedHandler
 }
 
-func sessionHandler(c *Client, frame []byte) {
-	before := time.Now()
-	var msg SessionMessage
-	decodeFrame(frame, &msg)
-	log.Println(msg)
-	dbUser := UserWithSid(msg.Session)
+func sessionHandler(c *Client, frame hash) {
+	oldSid, oldSecret := sessionMessage(frame)
+	dbUser := UserWithSid(oldSid)
 	newSid := c.session.Id
+	c.session.OldId = oldSid
 	c.session.Secret = makeSessionSecret()
-	if dbUser != nil && msg.Secret == dbUser.LastSessionSecret {
-		UpdateUserSecret(msg.Session, newSid, c.session.Secret)
+	var accepted bool
+	if dbUser != nil && oldSecret == dbUser.LastSessionSecret {
+		accepted = true
+		c.UpdateUserFromDb(*dbUser)
 	} else {
-		CreateFakeUser(newSid, c.session.Secret)
+		accepted = false
+		c.CreateFakeUser()
 	}
 
-	var response SessionResponseMessage
-	response.Type = "session.response"
-	response.Accepted = false
-	response.Session = newSid
-	response.Secret = c.session.Secret
+	response := sessionResponseMessage(newSid, c.session.Secret, accepted)
 	c.sendQueue <- response
+}
 
-	duration := time.Now().Sub(before)
-	log.Println("session.response took", duration)
+func sessionUpdatedHandler(c *Client, frame hash) {
+	if c.session.OldId != "" {
+		UpdateUserSecret(c.session.OldId, c.session.Id, c.session.Secret)
+		c.active = true
+		c.SendUserInfo()
+	}
 }
 
 // query db for user with sid as provided, if exists and secret matches then

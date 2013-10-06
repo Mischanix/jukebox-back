@@ -38,5 +38,6 @@ func makeSessionSecret() string {
 
 type Session struct {
 	Id     string
+	OldId  string
 	Secret string
 }

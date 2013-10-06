@@ -1,13 +1,13 @@
 package main
 
-type LoginMessage struct {
-	BasicMessage
-	Nick string `json:"nick"`
-	Pass string `json:"pass"`
+func loginMessage(frame hash) (nick, pass string) {
+	return frame.stringOrEmpty("nick"), frame.stringOrEmpty("pass")
 }
 
-type LoginResponseMessage struct {
-	BasicMessage
-	Status string `json:"status"` // ok, nok
-	Reason string `json:"reason"`
+func loginResponseMessage(status, reason string) hash {
+	return hash{
+		"type":   "login.response",
+		"status": status,
+		"reason": reason,
+	}
 }

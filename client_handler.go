@@ -1,26 +1,21 @@
 package main
 
 import (
-	"bytes"
 	"code.google.com/p/go.net/websocket"
-	"encoding/json"
 	"io"
 	"log"
 )
 
 type empty struct{}
 
-type messageHandler func(c *Client, frame []byte)
+type messageHandler func(c *Client, frame hash)
 
 var handlers = make(map[string]messageHandler)
 
-func decodeFrame(frame []byte, v interface{}) {
-	err := json.NewDecoder(bytes.NewReader(frame)).Decode(v)
-	if err != nil {
-		panic(err)
-	}
-}
-
+// ClientHandler handles a websocket connection for one client.  It initializes
+// the client's Client object, dispatches incoming messages to their
+// appropriate handlers, and writes outgoing messages as well.  Any error
+// encountered while handling the client will cause the connection to be closed
 func ClientHandler(ws *websocket.Conn) {
 	done := make(chan empty, 1)
 	defer func() {
@@ -45,22 +40,31 @@ func ClientHandler(ws *websocket.Conn) {
 		for {
 			select {
 			case <-done:
-				log.Println("write thread finishing")
 				return
 			case data := <-client.sendQueue:
-				log.Println("sending packet meow")
 				websocket.JSON.Send(ws, data)
 			}
 		}
 	}()
 	for {
-		var frame []byte
-		websocket.Message.Receive(ws, &frame)
-		var msg BasicMessage
-		decodeFrame(frame, &msg)
-		log.Println(msg)
-		if handler, ok := handlers[msg.Type]; ok {
-			handler(client, frame)
+		frame := make(hash)
+		err := websocket.JSON.Receive(ws, &frame)
+		if err != nil {
+			// Hack: Handle IE10 being a special snowflake and sending Pong frames.
+			// If IE10 doesn't receive a message within its deadline (default: 10s)
+			// after sending the Pong frame, it will close the connection.  ENI is
+			// only used in the case of the server receiving a Pong frame.
+			if err == websocket.ErrNotImplemented {
+				client.sendQueue <- goPongYourselfMsg
+			} else {
+				panic(err)
+			}
+		} else {
+			msgType := frame["type"].(string)
+			log.Println(msgType)
+			if handler, ok := handlers[msgType]; ok {
+				handler(client, frame)
+			}
 		}
 	}
 }
