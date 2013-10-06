@@ -9,7 +9,12 @@ func sessionHandler(c *Client, frame hash) {
 	oldSid, oldSecret := sessionMessage(frame)
 	dbUser := UserWithSid(oldSid)
 	newSid := c.session.Id
-	c.session.OldId = oldSid
+	if oldSid == "" {
+		// Fake it if the client has no sid -- cleaner this way
+		c.session.OldId = getSessionId()
+	} else {
+		c.session.OldId = oldSid
+	}
 	c.session.Secret = makeSessionSecret()
 	var accepted bool
 	if dbUser != nil && oldSecret == dbUser.LastSessionSecret {

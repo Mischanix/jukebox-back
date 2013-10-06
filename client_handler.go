@@ -17,8 +17,10 @@ var handlers = make(map[string]messageHandler)
 // appropriate handlers, and writes outgoing messages as well.  Any error
 // encountered while handling the client will cause the connection to be closed
 func ClientHandler(ws *websocket.Conn) {
+	var client *Client
 	done := make(chan empty, 1)
 	defer func() {
+		delete(clients, client.session.Id)
 		done <- empty{}
 		err := recover()
 		if err != io.EOF {
@@ -28,7 +30,7 @@ func ClientHandler(ws *websocket.Conn) {
 		}
 	}()
 
-	client := &Client{}
+	client = &Client{}
 	client.ws = ws
 	client.sendQueue = make(chan interface{}, 1)
 	client.session = &Session{}

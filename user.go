@@ -23,6 +23,9 @@ type DbUser struct {
 }
 
 func UserWithSid(sid string) *DbUser {
+	if sid == "" {
+		return nil
+	}
 	result := &DbUser{}
 	err := dbColl.Find(bson.M{"lastsessionid": sid}).One(result)
 	if err != nil {
@@ -73,5 +76,9 @@ func (c *Client) UpdateUserFromDb(dbUser DbUser) {
 }
 
 func (c *Client) SendUserInfo() {
-	c.sendQueue <- userMessage(c.user.Nick, c.user.Quarters, c.user.SkipCost)
+	c.sendQueue <- userMessage(
+		c.user.Nick,
+		c.user.Quarters,
+		c.user.SkipCost,
+		c.user.Fake)
 }
