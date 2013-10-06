@@ -23,7 +23,7 @@ func ClientHandler(ws *websocket.Conn) {
 		delete(clients, client.session.Id)
 		done <- empty{}
 		err := recover()
-		if err != io.EOF {
+		if err != nil && err != io.EOF {
 			websocket.JSON.Send(ws, errorMsg)
 			ws.Close()
 			panic(err)
@@ -32,16 +32,24 @@ func ClientHandler(ws *websocket.Conn) {
 
 	client = &Client{}
 	client.ws = ws
+	client.kill = make(chan empty)
 	client.sendQueue = make(chan interface{}, 1)
 	client.session = &Session{}
 	client.session.Id = getSessionId()
 	clients[client.session.Id] = client
 	client.sendQueue <- readyMsg
 
+	var killed bool
 	go func() {
 		for {
 			select {
+			case <-client.kill:
+				killed = true
+				log.Println("killed session", client.session.Id)
+				ws.Close()
+				return
 			case <-done:
+				log.Println("end session", client.session.Id)
 				return
 			case data := <-client.sendQueue:
 				websocket.JSON.Send(ws, data)
@@ -58,6 +66,8 @@ func ClientHandler(ws *websocket.Conn) {
 			// only used in the case of the server receiving a Pong frame.
 			if err == websocket.ErrNotImplemented {
 				client.sendQueue <- goPongYourselfMsg
+			} else if killed {
+				return
 			} else {
 				panic(err)
 			}

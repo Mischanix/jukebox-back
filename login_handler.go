@@ -1,9 +1,51 @@
 package main
 
+import (
+	"log"
+	"time"
+)
+
 func init() {
 	handlers["login"] = loginHandler
 }
 
 func loginHandler(c *Client, frame hash) {
-
+	before := time.Now()
+	nick, pass := loginMessage(frame)
+	log.Println(nick, pass)
+	if nick == "" || pass == "" {
+		c.sendQueue <- loginResponseMessage("nok", "need nick and pass")
+		return
+	}
+	if len(nick) > 50 {
+		c.sendQueue <- loginResponseMessage("nok", "nick too long")
+		return
+	}
+	dbUser := UserWithNick(nick)
+	if dbUser == nil || dbUser.Fake { // register
+		dbUser = UserWithSid(c.session.Id)
+		if dbUser == nil {
+			// unlikely
+			c.sendQueue <- loginResponseMessage("nok", "victim not found")
+			return
+		}
+		dbUser.Nick = nick
+		dbUser.Fake = false
+		dbUser.NewKey(pass)
+		c.UpdateUser(*dbUser)
+		c.sendQueue <- loginResponseMessage("ok", "")
+	} else { // login
+		if dbUser.TestKey(pass) {
+			c.sendQueue <- loginResponseMessage("ok", "")
+			c.DestroyFakeUser()
+			UpdateUserSecret(dbUser.LastSessionId, c.session.Id, c.session.Secret)
+		} else {
+			c.sendQueue <- loginResponseMessage("nok", "bad credentials")
+			return
+		}
+	}
+	c.UpdateUserFromDb(*dbUser)
+	c.KillClones()
+	c.SendUserInfo()
+	log.Println("login took", time.Now().Sub(before))
 }

@@ -8,6 +8,7 @@ var clients = make(map[string]*Client)
 
 type Client struct {
 	ws        *websocket.Conn
+	kill      chan empty
 	session   *Session
 	user      *User
 	active    bool

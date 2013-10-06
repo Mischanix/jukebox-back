@@ -18,6 +18,7 @@ type DbUser struct {
 	SkipCost          float64
 	Fake              bool
 	Base64Key         string
+	Base64Salt        string
 	LastSessionId     string
 	LastSessionSecret string
 }
@@ -38,6 +39,22 @@ func UserWithSid(sid string) *DbUser {
 	return result
 }
 
+func UserWithNick(nick string) *DbUser {
+	if nick == "" {
+		return nil
+	}
+	result := &DbUser{}
+	err := dbColl.Find(bson.M{"nick": nick}).One(result)
+	if err != nil {
+		if err == mgo.ErrNotFound {
+			return nil
+		} else {
+			panic(err)
+		}
+	}
+	return result
+}
+
 func UpdateUserSecret(oldSid, newSid, newSecret string) error {
 	return dbColl.Update(
 		bson.M{"lastsessionid": oldSid},
@@ -45,11 +62,6 @@ func UpdateUserSecret(oldSid, newSid, newSecret string) error {
 			"lastsessionid":     newSid,
 			"lastsessionsecret": newSecret,
 		}})
-}
-
-func UpdateUser(sid string, user *User) error {
-	return dbColl.Update(
-		bson.M{"lastsessionid": sid}, *user)
 }
 
 func (c *Client) CreateFakeUser() {
@@ -67,6 +79,16 @@ func (c *Client) CreateFakeUser() {
 	c.UpdateUserFromDb(dbUser)
 }
 
+func (c *Client) DestroyFakeUser() {
+	err := dbColl.Remove(bson.M{
+		"lastsessionid": c.session.Id,
+		"fake":          true,
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (c *Client) UpdateUserFromDb(dbUser DbUser) {
 	c.user = &User{}
 	c.user.Fake = dbUser.Fake
@@ -75,10 +97,25 @@ func (c *Client) UpdateUserFromDb(dbUser DbUser) {
 	c.user.SkipCost = dbUser.SkipCost
 }
 
+func (c *Client) UpdateUser(dbUser DbUser) error {
+	return dbColl.Update(
+		bson.M{"lastsessionid": c.session.Id},
+		bson.M{"$set": dbUser},
+	)
+}
+
 func (c *Client) SendUserInfo() {
 	c.sendQueue <- userMessage(
 		c.user.Nick,
 		c.user.Quarters,
 		c.user.SkipCost,
 		c.user.Fake)
+}
+
+func (c *Client) KillClones() {
+	for _, client := range clients {
+		if c.user.Nick == client.user.Nick && c.session.Id != client.session.Id {
+			client.kill <- empty{}
+		}
+	}
 }
