@@ -14,3 +14,9 @@ type Client struct {
 	active    bool
 	sendQueue chan interface{}
 }
+
+func broadcast(frame hash) {
+	for _, client := range clients {
+		client.sendQueue <- frame
+	}
+}

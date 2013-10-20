@@ -22,8 +22,12 @@ func loginHandler(c *Client, frame hash) {
 		c.sendQueue <- loginResponseMessage("nok", "nick too long")
 		return
 	}
+	if !c.user.Fake {
+		c.sendQueue <- loginResponseMessage("nok", "already logged in")
+		return
+	}
 	dbUser := UserWithNick(nick)
-	if dbUser == nil || dbUser.Fake { // register
+	if dbUser == nil { // register
 		dbUser = UserWithSid(c.session.Id)
 		if dbUser == nil {
 			// unlikely

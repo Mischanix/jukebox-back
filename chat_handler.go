@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strings"
 )
 
 func init() {
@@ -9,12 +10,10 @@ func init() {
 }
 
 func chatHandler(c *Client, frame hash) {
-	message := chatMessage(frame)
-	receiveMessage := chatReceiveMessage(c.user.Nick, message)
-	for _, client := range clients {
-		if client != c && client.active {
-			client.sendQueue <- receiveMessage
-		}
+	message := strings.TrimSpace(chatMessage(frame))
+	if len(message) == 0 {
+		return
 	}
+	broadcast(chatReceiveMessage(c.user.Nick, message))
 	log.Println("client count", len(clients))
 }

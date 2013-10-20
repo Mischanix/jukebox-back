@@ -33,7 +33,7 @@ func ClientHandler(ws *websocket.Conn) {
 	client = &Client{}
 	client.ws = ws
 	client.kill = make(chan empty)
-	client.sendQueue = make(chan interface{}, 1)
+	client.sendQueue = make(chan interface{}, 8)
 	client.session = &Session{}
 	client.session.Id = getSessionId()
 	clients[client.session.Id] = client
