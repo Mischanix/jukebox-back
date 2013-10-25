@@ -102,3 +102,22 @@ func playTrack() {
 		}
 	}
 }
+
+func init() {
+	handlers["queue.info"] = queueInfo
+}
+
+func queueInfo(c *Client, frame hash) {
+	result := hash{"type": "queue.tracks"}
+	resultInfo := make([]hash, len(songQueue))
+	for n, track := range songQueue {
+		resultInfo[n] = hash{
+			"track":  track.id,
+			"link":   track.link,
+			"artist": track.artist,
+			"title":  track.title,
+		}
+	}
+	result["queue"] = resultInfo
+	c.sendQueue <- result
+}
