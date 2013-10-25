@@ -13,7 +13,6 @@ func init() {
 func loginHandler(c *Client, frame hash) {
 	before := time.Now()
 	nick, pass := loginMessage(frame)
-	log.Println(nick, pass)
 	if nick == "" || pass == "" {
 		c.sendQueue <- loginResponseMessage("nok", "need nick and pass")
 		return
